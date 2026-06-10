@@ -76,13 +76,15 @@ struct Index {
       }
       .width('100%')
       .height('100%')
-      // 让灰色背景延伸到底部「小白条」之下，避免出现白色矩形
+      // 灰色背景铺到 Stack 自身，配合 expandSafeArea 延伸到底部「小白条」之下，避免出现白色空白
+      .backgroundColor('#F2F3F7')
       .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
     }
     .title('🎵 音乐标签编辑器')
     .titleMode(NavigationTitleMode.Mini)
     .mode(NavigationMode.Stack)
     .navDestination(this.EditorDestination)
+    .hideBackButton(true)
   }
 
   // ===================== 编辑页（NavDestination） =====================
@@ -93,7 +95,8 @@ struct Index {
         AudioTagEditorPage({ fileEntry: param as AudioFileEntry })
       }
     }
-    .hideTitleBar(true)
+    .title((param as AudioFileEntry).fileName)
+    .mode(NavDestinationMode.STANDARD)
   }
 
   // ===================== 空列表引导 =====================

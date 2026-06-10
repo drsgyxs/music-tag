@@ -84,11 +84,8 @@ export struct AudioTagEditorPage {
 
   // ===================== 构建入口 =====================
   build() {
-    Stack({ alignContent: Alignment.Bottom }) {
+    Stack({ alignContent: Alignment.BottomEnd }) {
       Column() {
-        // 标题栏
-        this.TitleBar()
-
         if (this.isLoading) {
           this.LoadingView()
         } else if (!this.hasSelectedFile) {
@@ -101,6 +98,11 @@ export struct AudioTagEditorPage {
       .height('100%')
       .backgroundColor('#F2F3F7')
 
+      // 写入文件悬浮按钮
+      if (this.hasSelectedFile && !this.isLoading) {
+        this.WriteFab()
+      }
+
       // 消息提示浮层
       if (this.errorMessage || this.successMessage) {
         this.MessageToast()
@@ -108,60 +110,35 @@ export struct AudioTagEditorPage {
     }
     .width('100%')
     .height('100%')
-    // 灰色背景延伸到底部「小白条」之下，避免出现白色矩形
+    // 灰色背景铺到 Stack 自身，配合 expandSafeArea 延伸到底部「小白条」之下，避免出现白色空白
+    .backgroundColor('#F2F3F7')
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
   }
 
-  // ===================== 标题栏 =====================
+  // ===================== 写入文件悬浮按钮 =====================
   @Builder
-  TitleBar() {
-    Row() {
-      Button({ type: ButtonType.Normal }) {
-        Text('‹ 返回')
-          .fontSize(14)
+  WriteFab() {
+    Button({ type: ButtonType.Circle }) {
+      if (this.isWriting) {
+        LoadingProgress()
+          .width(28)
+          .height(28)
+          .color('#FFFFFF')
+      } else {
+        Text('💾')
+          .fontSize(24)
           .fontColor('#FFFFFF')
       }
-      .backgroundColor(Color.Transparent)
-      .height(30)
-      .padding({ right: 8 })
-      .onClick(() => {
-        this.pageStack.pop();
-      })
-
-      Text(this.fileEntry.fileName)
-        .fontSize(15)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#FFFFFF')
-        .maxLines(1)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-        .layoutWeight(1)
-        .textAlign(TextAlign.Center)
-
-      if (this.hasSelectedFile) {
-        Button({ type: ButtonType.Normal }) {
-          Text(this.isWriting ? '写入中…' : '写入文件')
-            .fontSize(13)
-            .fontColor('#FFFFFF')
-        }
-        .backgroundColor('#009688')
-        .borderRadius(16)
-        .height(30)
-        .padding({ left: 12, right: 12 })
-        .margin({ left: 8 })
-        .enabled(!this.isWriting)
-        .opacity(this.isWriting ? 0.6 : 1)
-        .onClick(() => {
-          this.writeTagsToFile();
-        })
-      } else {
-        // 占位，保持标题居中
-        Row().width(64)
-      }
     }
-    .width('100%')
+    .width(56)
     .height(56)
-    .padding({ left: 12, right: 12 })
-    .backgroundColor('#3F51B5')
+    .backgroundColor('#009688')
+    .shadow({ radius: 12, color: '#40000000', offsetX: 0, offsetY: 4 })
+    .margin({ right: 20, bottom: 40 })
+    .enabled(!this.isWriting)
+    .onClick(() => {
+      this.writeTagsToFile();
+    })
   }
 
   // ===================== 加载中 =====================
@@ -244,7 +221,7 @@ export struct AudioTagEditorPage {
         this.NoticeSection()
       }
       .width('100%')
-      .padding({ left: 12, right: 12, top: 8, bottom: 48 })
+      .padding({ left: 12, right: 12, top: 8, bottom: 104 })
     }
     .width('100%')
     .layoutWeight(1)
