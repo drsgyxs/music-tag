@@ -30,6 +30,14 @@ struct AudioTagEditorPage {
   @State editComment: string = '';
   @State editLyrics: string = '';
 
+  // 详细信息编辑字段
+  @State editComposer: string = '';
+  @State editWriter: string = '';
+  @State editAlbumArtist: string = '';
+  @State editTrackNumber: string = '';
+  @State editDiscNumber: string = '';
+  @State editCopyright: string = '';
+
   // 导出弹窗
   @State showExportDialog: boolean = false;
 
@@ -420,18 +428,60 @@ struct AudioTagEditorPage {
     .margin({ bottom: 14 })
   }
 
+  /** 当前格式不支持编辑的字段：只读展示并附说明 */
+  @Builder
+  UnsupportedFieldItem(label: string, value: string, reason: string) {
+    Column() {
+      Row() {
+        Text(label)
+          .fontSize(12)
+          .fontColor('#7F8C8D')
+        Text('不支持')
+          .fontSize(10)
+          .fontColor('#E67E22')
+          .backgroundColor('#FDEBD0')
+          .padding({ left: 6, right: 6, top: 1, bottom: 1 })
+          .borderRadius(8)
+          .margin({ left: 6 })
+      }
+      .width('100%')
+      .margin({ bottom: 4 })
+
+      TextInput({ text: value })
+        .width('100%')
+        .height(40)
+        .backgroundColor('#ECEFF1')
+        .borderRadius(8)
+        .fontSize(14)
+        .fontColor('#BDC3C7')
+        .enabled(false)
+      Text(reason)
+        .fontSize(11)
+        .fontColor('#95A5A6')
+        .width('100%')
+        .margin({ top: 4 })
+    }
+    .width('100%')
+    .margin({ bottom: 14 })
+  }
+
   // ===================== 详细信息 =====================
   @Builder
   DetailInfoSection() {
     Column() {
       this.CardHeader('ℹ️ 详细信息')
 
-      this.InfoRow2('作曲家', this.currentMetadata.composer)
-      this.InfoRow2('词作者', this.currentMetadata.writer)
-      this.InfoRow2('专辑艺术家', this.currentMetadata.albumArtist)
-      this.InfoRow2('音轨号', this.currentMetadata.trackNumber)
-      this.InfoRow2('光盘号', this.currentMetadata.discNumber)
-      this.InfoRow2('版权', this.currentMetadata.copyright)
+      this.EditFieldItem('作曲家', this.editComposer, '作曲', (v) => { this.editComposer = v; })
+      // 词作者：M4A/MP4/AAC 无对应标准标签，禁用编辑
+      if (this.isWriterSupported()) {
+        this.EditFieldItem('词作者', this.editWriter, '作词', (v) => { this.editWriter = v; })
+      } else {
+        this.UnsupportedFieldItem('词作者', this.editWriter, '当前格式不支持写入词作者')
+      }
+      this.EditFieldItem('专辑艺术家', this.editAlbumArtist, '专辑艺术家', (v) => { this.editAlbumArtist = v; })
+      this.EditFieldItem('音轨号', this.editTrackNumber, '如 3 或 3/12', (v) => { this.editTrackNumber = v; })
+      this.EditFieldItem('光盘号', this.editDiscNumber, '如 1 或 1/2', (v) => { this.editDiscNumber = v; })
+      this.EditFieldItem('版权', this.editCopyright, '版权信息', (v) => { this.editCopyright = v; })
 
       // 注释（可编辑）
       Column() {
@@ -561,6 +611,8 @@ struct AudioTagEditorPage {
         .noticeTextStyle()
       Text('5. 目前标签读取与写入支持 MP3、FLAC、M4A，其他格式陆续支持中......')
         .noticeTextStyle()
+      Text('6. 作曲家、词作者、专辑艺术家、音轨号、光盘号、版权均可编辑；其中「词作者」在 M4A 格式下无标准标签，故不支持写入')
+        .noticeTextStyle()
     }
     .width('100%')
     .padding(16)
@@ -657,6 +709,15 @@ struct AudioTagEditorPage {
 
   // ===================== 业务方法 =====================
   /**
+   * 当前文件格式是否支持写入「词作者」。
+   * M4A/MP4/AAC 的 iTunes 标签体系无标准的作词(lyricist)原子，故不支持。
+   */
+  private isWriterSupported(): boolean {
+    const fmt: string = this.currentMetadata.fileFormat.toLowerCase();
+    return fmt !== 'm4a' && fmt !== 'mp4' && fmt !== 'aac';
+  }
+
+  /**
    * 选择音频文件
    */
   async selectAudioFile(): Promise<void> {
@@ -689,6 +750,12 @@ struct AudioTagEditorPage {
       this.editGenre = metadata.genre;
       this.editComment = metadata.comment;
       this.editLyrics = metadata.lyrics;
+      this.editComposer = metadata.composer;
+      this.editWriter = metadata.writer;
+      this.editAlbumArtist = metadata.albumArtist;
+      this.editTrackNumber = metadata.trackNumber;
+      this.editDiscNumber = metadata.discNumber;
+      this.editCopyright = metadata.copyright;
       this.lyricsExpanded = false;
 
       // 加载封面
@@ -754,6 +821,15 @@ struct AudioTagEditorPage {
       this.currentMetadata.comment = this.editComment;
       this.currentMetadata.lyrics = this.editLyrics;
       this.currentMetadata.hasLyrics = this.editLyrics.trim().length > 0;
+      this.currentMetadata.composer = this.editComposer;
+      this.currentMetadata.albumArtist = this.editAlbumArtist;
+      this.currentMetadata.trackNumber = this.editTrackNumber;
+      this.currentMetadata.discNumber = this.editDiscNumber;
+      this.currentMetadata.copyright = this.editCopyright;
+      // 词作者仅在受支持的格式下写入
+      if (this.isWriterSupported()) {
+        this.currentMetadata.writer = this.editWriter;
+      }
 
       // 组装标签输入
       const input: Id3TagInput = {
@@ -762,11 +838,13 @@ struct AudioTagEditorPage {
         album: this.currentMetadata.album,
         albumArtist: this.currentMetadata.albumArtist,
         composer: this.currentMetadata.composer,
+        writer: this.isWriterSupported() ? this.currentMetadata.writer : '',
         year: this.currentMetadata.year,
         genre: this.currentMetadata.genre,
         trackNumber: this.currentMetadata.trackNumber,
         discNumber: this.currentMetadata.discNumber,
         comment: this.currentMetadata.comment,
+        copyright: this.currentMetadata.copyright,
         lyrics: this.currentMetadata.lyrics
       };
 

@@ -178,6 +178,7 @@ export class M4aWriter {
     M4aWriter.addText(items, '©day', input.year);
     M4aWriter.addText(items, '©gen', input.genre);
     M4aWriter.addText(items, '©cmt', input.comment);
+    M4aWriter.addText(items, 'cprt', input.copyright);
     M4aWriter.addText(items, '©lyr', input.lyrics);
     M4aWriter.addNumberPair(items, 'trkn', input.trackNumber);
     M4aWriter.addNumberPair(items, 'disk', input.discNumber);

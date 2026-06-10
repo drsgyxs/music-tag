@@ -17,11 +17,13 @@ export interface Id3TagInput {
   album?: string;
   albumArtist?: string;
   composer?: string;
+  writer?: string;           // 词作者 (TEXT)
   year?: string;
   genre?: string;
   trackNumber?: string;
   discNumber?: string;
   comment?: string;
+  copyright?: string;        // 版权 (TCOP)
   lyrics?: string;
   coverData?: ArrayBuffer;   // 封面图片原始字节（JPEG/PNG）
   coverMime?: string;        // 封面 MIME，如 image/jpeg
@@ -43,10 +45,12 @@ export class Id3v2Writer {
     Id3v2Writer.appendTextFrame(frames, 'TALB', input.album);
     Id3v2Writer.appendTextFrame(frames, 'TPE2', input.albumArtist);
     Id3v2Writer.appendTextFrame(frames, 'TCOM', input.composer);
+    Id3v2Writer.appendTextFrame(frames, 'TEXT', input.writer);
     Id3v2Writer.appendTextFrame(frames, 'TYER', input.year);
     Id3v2Writer.appendTextFrame(frames, 'TCON', input.genre);
     Id3v2Writer.appendTextFrame(frames, 'TRCK', input.trackNumber);
     Id3v2Writer.appendTextFrame(frames, 'TPOS', input.discNumber);
+    Id3v2Writer.appendTextFrame(frames, 'TCOP', input.copyright);
     Id3v2Writer.appendCommentFrame(frames, input.comment);
     Id3v2Writer.appendLyricsFrame(frames, input.lyrics);
     Id3v2Writer.appendApicFrame(frames, input.coverData, input.coverMime);

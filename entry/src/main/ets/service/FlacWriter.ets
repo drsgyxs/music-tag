@@ -110,11 +110,13 @@ export class FlacWriter {
     FlacWriter.addComment(comments, 'ALBUM', input.album);
     FlacWriter.addComment(comments, 'ALBUMARTIST', input.albumArtist);
     FlacWriter.addComment(comments, 'COMPOSER', input.composer);
+    FlacWriter.addComment(comments, 'LYRICIST', input.writer);
     FlacWriter.addComment(comments, 'DATE', input.year);
     FlacWriter.addComment(comments, 'GENRE', input.genre);
     FlacWriter.addComment(comments, 'TRACKNUMBER', input.trackNumber);
     FlacWriter.addComment(comments, 'DISCNUMBER', input.discNumber);
     FlacWriter.addComment(comments, 'COMMENT', input.comment);
+    FlacWriter.addComment(comments, 'COPYRIGHT', input.copyright);
     FlacWriter.addComment(comments, 'LYRICS', input.lyrics);
 
     const body: number[] = [];
