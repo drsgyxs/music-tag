@@ -1,0 +1,24 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "module description"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "description"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "音乐标签编辑器"
+    },
+    {
+      "name": "read_media_reason",
+      "value": "Need to read audio files to display and edit their metadata tags"
+    },
+    {
+      "name": "write_media_reason",
+      "value": "Need to write metadata tags to audio files"
+    }
+  ]
+}

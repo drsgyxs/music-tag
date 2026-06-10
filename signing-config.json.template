@@ -1,0 +1,9 @@
+{
+  "certpath": "/path/to/your/cert.cer",
+  "storeFile": "/path/to/your/keystore.p12",
+  "storePassword": "your_store_password",
+  "keyAlias": "your_key_alias",
+  "keyPassword": "your_key_password",
+  "profile": "/path/to/your/profile.p7b",
+  "signAlg": "SHA256withECDSA"
+}
