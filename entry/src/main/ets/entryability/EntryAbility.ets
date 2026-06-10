@@ -23,13 +23,27 @@ export default class EntryAbility extends UIAbility {
   onWindowStageCreate(windowStage: window.WindowStage): void {
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageCreate');
 
-    // 直接加载音乐标签编辑器页面，无需 Index.ets 中转
+    // 沉浸式布局：让内容延伸到状态栏与底部「小白条」之下，
+    // 并将系统状态栏 / 导航条背景设为透明，避免底部出现白色矩形。
+    try {
+      const mainWindow = windowStage.getMainWindowSync();
+      mainWindow.setWindowLayoutFullScreen(true);
+      mainWindow.setWindowSystemBarProperties({
+        statusBarColor: '#00000000',
+        statusBarContentColor: '#000000',
+        navigationBarColor: '#00000000',
+        navigationBarContentColor: '#000000'
+      });
+    } catch (err) {
+      hilog.error(DOMAIN, 'testTag', 'Failed to set immersive window. Cause: %{public}s', JSON.stringify(err));
+    }
+
     windowStage.loadContent('pages/Index', (err) => {
       if (err.code) {
         hilog.error(DOMAIN, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err));
         return;
       }
-      hilog.info(DOMAIN, 'testTag', 'Succeeded in loading AudioTagEditorPage.');
+      hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the home page.');
     });
   }
 

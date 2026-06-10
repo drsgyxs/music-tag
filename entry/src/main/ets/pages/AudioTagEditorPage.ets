@@ -108,6 +108,8 @@ export struct AudioTagEditorPage {
     }
     .width('100%')
     .height('100%')
+    // 灰色背景延伸到底部「小白条」之下，避免出现白色矩形
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
   }
 
   // ===================== 标题栏 =====================
@@ -242,7 +244,7 @@ export struct AudioTagEditorPage {
         this.NoticeSection()
       }
       .width('100%')
-      .padding({ left: 12, right: 12, top: 8, bottom: 24 })
+      .padding({ left: 12, right: 12, top: 8, bottom: 48 })
     }
     .width('100%')
     .layoutWeight(1)

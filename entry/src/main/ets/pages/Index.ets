@@ -76,6 +76,8 @@ struct Index {
       }
       .width('100%')
       .height('100%')
+      // 让灰色背景延伸到底部「小白条」之下，避免出现白色矩形
+      .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
     }
     .title('🎵 音乐标签编辑器')
     .titleMode(NavigationTitleMode.Mini)
@@ -235,7 +237,7 @@ struct Index {
     .height(56)
     .backgroundColor('#3F51B5')
     .shadow({ radius: 12, color: '#40000000', offsetX: 0, offsetY: 4 })
-    .margin({ right: 20, bottom: 28 })
+    .margin({ right: 20, bottom: 40 })
     .enabled(!this.isImporting)
     .onClick(() => {
       this.importFiles();
