@@ -19,6 +19,10 @@
     {
       "name": "write_media_reason",
       "value": "Need to write metadata tags to audio files"
+    },
+    {
+      "name": "persist_permission_reason",
+      "value": "Need persistent access to imported audio files so they remain editable across app restarts"
     }
   ]
 }

@@ -1,17 +1,21 @@
 /**
- * 音乐标签编辑器主页面
- * 提供音频文件选择、元数据显示和编辑功能
+ * 音乐标签编辑器页面（Navigation 子页）
+ * 接收主页传入的文件项，读取、显示并编辑其元数据标签。
  */
 import { AudioMetadata, AudioMetadataBuilder } from '../model/AudioMetadata';
+import { AudioFileEntry } from '../model/AudioFileEntry';
 import { AudioMetadataService } from '../service/AudioMetadataService';
 import { FilePickerService } from '../service/FilePickerService';
 import { AudioMetadataWriteService } from '../service/AudioMetadataWriteService';
 import { Id3TagInput } from '../service/Id3v2Writer';
 import { image } from '@kit.ImageKit';
 
-@Entry
 @Component
-struct AudioTagEditorPage {
+export struct AudioTagEditorPage {
+  // 主页传入的文件项
+  @Require @Prop fileEntry: AudioFileEntry;
+  @Consume('pageStack') pageStack: NavPathStack;
+
   // ===================== 状态变量 =====================
   @State currentMetadata: AudioMetadata = AudioMetadataBuilder.createDefault();
   @State isLoading: boolean = false;
@@ -54,7 +58,7 @@ struct AudioTagEditorPage {
   private errorTimer: number = -1;
 
   aboutToAppear(): void {
-
+    this.loadMetadataFromEntry();
   }
 
   // ===================== 消息工具 =====================
@@ -110,14 +114,28 @@ struct AudioTagEditorPage {
   @Builder
   TitleBar() {
     Row() {
-      Text('🎵 音乐标签编辑器')
-        .fontSize(16)
+      Button({ type: ButtonType.Normal }) {
+        Text('‹ 返回')
+          .fontSize(14)
+          .fontColor('#FFFFFF')
+      }
+      .backgroundColor(Color.Transparent)
+      .height(30)
+      .padding({ right: 8 })
+      .onClick(() => {
+        this.pageStack.pop();
+      })
+
+      Text(this.fileEntry.fileName)
+        .fontSize(15)
         .fontWeight(FontWeight.Bold)
         .fontColor('#FFFFFF')
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
         .layoutWeight(1)
+        .textAlign(TextAlign.Center)
 
       if (this.hasSelectedFile) {
-
         Button({ type: ButtonType.Normal }) {
           Text(this.isWriting ? '写入中…' : '写入文件')
             .fontSize(13)
@@ -127,30 +145,20 @@ struct AudioTagEditorPage {
         .borderRadius(16)
         .height(30)
         .padding({ left: 12, right: 12 })
-        .margin({ right: 8 })
+        .margin({ left: 8 })
         .enabled(!this.isWriting)
         .opacity(this.isWriting ? 0.6 : 1)
         .onClick(() => {
           this.writeTagsToFile();
         })
-
-        Button({ type: ButtonType.Normal }) {
-          Text('换文件')
-            .fontSize(13)
-            .fontColor('#FFFFFF')
-        }
-        .backgroundColor('#5C6BC0')
-        .borderRadius(16)
-        .height(30)
-        .padding({ left: 12, right: 12 })
-        .onClick(() => {
-          this.selectAudioFile();
-        })
+      } else {
+        // 占位，保持标题居中
+        Row().width(64)
       }
     }
     .width('100%')
     .height(56)
-    .padding({ left: 16, right: 12 })
+    .padding({ left: 12, right: 12 })
     .backgroundColor('#3F51B5')
   }
 
@@ -173,82 +181,52 @@ struct AudioTagEditorPage {
     .alignItems(HorizontalAlign.Center)
   }
 
-  // ===================== 未选文件 =====================
+  // ===================== 加载失败 =====================
   @Builder
   NoFileView() {
-    Scroll() {
-      Column() {
-        Image($r('app.media.startIcon'))
-          .width(100)
-          .height(100)
-          .margin({ top: 40, bottom: 20 })
-          .borderRadius(20)
+    Column() {
+      Text('😕')
+        .fontSize(48)
+        .margin({ bottom: 16 })
+      Text('未能读取该文件')
+        .fontSize(18)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#2C3E50')
+        .margin({ bottom: 8 })
+      Text('文件可能已被移动、删除，或访问权限已失效')
+        .fontSize(13)
+        .fontColor('#7F8C8D')
+        .textAlign(TextAlign.Center)
+        .margin({ bottom: 28 })
 
-        Text('欢迎使用音乐标签编辑器')
-          .fontSize(22)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#2C3E50')
-          .margin({ bottom: 8 })
+      Button('重试')
+        .width(160)
+        .height(44)
+        .fontSize(15)
+        .backgroundColor('#3F51B5')
+        .fontColor('#FFFFFF')
+        .borderRadius(22)
+        .onClick(() => {
+          this.loadMetadataFromEntry();
+        })
 
-        Text('选择音频文件以查看和编辑标签信息')
-          .fontSize(14)
-          .fontColor('#7F8C8D')
-          .margin({ bottom: 32 })
-
-        Button('选择音频文件')
-          .width(200)
-          .height(48)
-          .fontSize(16)
-          .backgroundColor('#3F51B5')
-          .fontColor('#FFFFFF')
-          .borderRadius(24)
-          .onClick(() => {
-            this.selectAudioFile();
-          })
-
-        // 功能说明卡片
-        Column() {
-          this.FeatureItem('🎵', '读取标签', '支持 MP3、FLAC、M4A、ACC 等格式')
-          this.FeatureItem('✏️', '编辑标签', '修改标题、艺术家、专辑、年份等')
-          this.FeatureItem('🖼️', '封面管理', '查看内嵌封面，支持更换图片')
-          this.FeatureItem('📝', '歌词查看', '读取内嵌歌词，支持手动输入')
-        }
-        .width('88%')
-        .padding(20)
-        .margin({ top: 32, bottom: 24 })
-        .backgroundColor('#FFFFFF')
-        .borderRadius(16)
-        .alignItems(HorizontalAlign.Start)
-      }
-      .width('100%')
-      .alignItems(HorizontalAlign.Center)
+      Button('返回列表')
+        .width(160)
+        .height(44)
+        .fontSize(15)
+        .backgroundColor('#ECEFF1')
+        .fontColor('#5C6BC0')
+        .borderRadius(22)
+        .margin({ top: 12 })
+        .onClick(() => {
+          this.pageStack.pop();
+        })
     }
     .width('100%')
     .layoutWeight(1)
-  }
-
-  @Builder
-  FeatureItem(icon: string, title: string, desc: string) {
-    Row() {
-      Text(icon)
-        .fontSize(22)
-        .width(36)
-        .textAlign(TextAlign.Center)
-      Column() {
-        Text(title)
-          .fontSize(14)
-          .fontWeight(FontWeight.Medium)
-          .fontColor('#2C3E50')
-        Text(desc)
-          .fontSize(12)
-          .fontColor('#95A5A6')
-          .margin({ top: 2 })
-      }
-      .alignItems(HorizontalAlign.Start)
-      .layoutWeight(1)
-    }
-    .width('100%')
-    .margin({ bottom: 14 })
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+    .padding(24)
   }
 
   // ===================== 编辑器主视图 =====================
@@ -278,7 +256,7 @@ struct AudioTagEditorPage {
     Column() {
       this.CardHeader('📁 文件信息')
 
-      this.InfoRow2('文件名', decodeURI(this.currentMetadata.fileName))
+      this.InfoRow2('文件名', this.currentMetadata.fileName)
       this.InfoRow2('格式', this.currentMetadata.fileFormat.toUpperCase() || '未知')
       Row() {
         Column() {
@@ -718,26 +696,23 @@ struct AudioTagEditorPage {
   }
 
   /**
-   * 选择音频文件
+   * 读取主页传入文件的元数据
    */
-  async selectAudioFile(): Promise<void> {
+  async loadMetadataFromEntry(): Promise<void> {
     try {
       this.isLoading = true;
+      this.hasSelectedFile = false;
       this.errorMessage = '';
       this.successMessage = '';
-
-      // 使用文档选择器（DocumentViewPicker）选择文件，
-      // 它授予临时读写权限，"写入文件"功能才能原地回写标签。
-      const selectedFile = await this.filePickerService.selectAudioFileByDocumentPicker();
-
-      if (!selectedFile) {
-        this.isLoading = false;
-        return;
-      }
       this.coverPixelMap = null;
 
-      // 读取元数据
-      const metadata = await this.metadataService.readMetadataFromUri(selectedFile.uri);
+      // 读取元数据（uri 已在主页持久化并激活授权）
+      const metadata = await this.metadataService.readMetadataFromUri(this.fileEntry.uri);
+      // 文件名/大小以列表项为准，避免 uri 解析差异
+      metadata.fileName = this.fileEntry.fileName;
+      if (this.fileEntry.fileSize > 0) {
+        metadata.fileSize = this.fileEntry.fileSize;
+      }
 
       this.currentMetadata = metadata;
       this.hasSelectedFile = true;
@@ -764,10 +739,9 @@ struct AudioTagEditorPage {
       } else if (metadata.coverImagePath) {
         this.coverPixelMap = await this.metadataService.loadCoverImage(metadata.coverImagePath);
       }
-
-      this.showSuccess('音频文件加载成功');
     } catch (error) {
-      console.error('选择音频文件失败:', error);
+      console.error('读取音频文件失败:', error);
+      this.hasSelectedFile = false;
       this.showError(`加载失败: ${error}`);
     } finally {
       this.isLoading = false;

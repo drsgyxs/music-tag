@@ -62,25 +62,30 @@ export class FilePickerService {
   }
   
   /**
-   * 选择多个音频文件
+   * 使用 DocumentViewPicker 多选音频文件（可写方案）
+   *
+   * 与单选同理，必须用 DocumentViewPicker 才能授予读写权限并支持持久化授权，
+   * 以便后续原地回写标签。用于主页「导入」入口。
    * @param maxNumber 最大选择数量
    * @returns 选中的音频文件列表
    */
-  async selectMultipleAudioFiles(maxNumber: number = 10): Promise<SelectedAudioFile[]> {
+  async selectMultipleAudioFilesByDocumentPicker(maxNumber: number = 50): Promise<SelectedAudioFile[]> {
     try {
-      const audioViewPicker = new picker.AudioViewPicker();
-      
-      const audioSelectOptions: picker.AudioSelectOptions = new picker.AudioSelectOptions();
-      audioSelectOptions.maxSelectNumber = maxNumber;
-      
-      const audioSelectResult: Array<string> = await audioViewPicker.select(audioSelectOptions);
-      
-      if (!audioSelectResult || audioSelectResult.length === 0) {
+      const documentPicker = new picker.DocumentViewPicker();
+
+      const documentSelectOptions: picker.DocumentSelectOptions = new picker.DocumentSelectOptions();
+      documentSelectOptions.maxSelectNumber = maxNumber;
+      documentSelectOptions.fileSuffixFilters = ['音频文件|.mp3,.flac,.m4a,.aac'];
+
+      const documentSelectResult: Array<string> = await documentPicker.select(documentSelectOptions);
+
+      if (!documentSelectResult || documentSelectResult.length === 0) {
+        console.info('用户取消了文件选择');
         return [];
       }
-      
+
       const files: SelectedAudioFile[] = [];
-      for (const uri of audioSelectResult) {
+      for (const uri of documentSelectResult) {
         try {
           const fileInfo = await this.getFileInfo(uri);
           files.push(fileInfo);
@@ -88,11 +93,11 @@ export class FilePickerService {
           console.error(`获取文件信息失败: ${uri}`, e);
         }
       }
-      
+
       return files;
     } catch (error) {
-      console.error('选择多个音频文件失败:', error);
-      throw new Error(`选择多个音频文件失败: ${error}`);
+      console.error('多选音频文件失败:', error);
+      throw new Error(`多选音频文件失败: ${error}`);
     }
   }
   

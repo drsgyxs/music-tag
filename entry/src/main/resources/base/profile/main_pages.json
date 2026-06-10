@@ -1,6 +1,5 @@
 {
   "src": [
-    "pages/AudioTagEditorPage",
     "pages/Index"
   ]
 }
