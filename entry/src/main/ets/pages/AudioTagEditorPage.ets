@@ -221,7 +221,7 @@ export struct AudioTagEditorPage {
         this.NoticeSection()
       }
       .width('100%')
-      .padding({ left: 12, right: 12, top: 8, bottom: 104 })
+      .padding({ left: 12, right: 12, top: 8, bottom: 20 })
     }
     .width('100%')
     .layoutWeight(1)

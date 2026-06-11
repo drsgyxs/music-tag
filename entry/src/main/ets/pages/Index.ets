@@ -20,6 +20,8 @@ struct Index {
   @State isImporting: boolean = false;
   @State toastMessage: string = '';
   @Provide('pageStack') pageStack: NavPathStack = new NavPathStack();
+  @StorageProp('topRectHeight')
+  topRectHeight: number = 0;
 
   private storageService: FileListStorageService = FileListStorageService.getInstance();
   private permissionService: FilePermissionService = FilePermissionService.getInstance();
@@ -64,7 +66,6 @@ struct Index {
         }
         .width('100%')
         .height('100%')
-        .backgroundColor('#F2F3F7')
 
         // 悬浮导入按钮
         this.ImportFab()
@@ -76,15 +77,19 @@ struct Index {
       }
       .width('100%')
       .height('100%')
-      // 灰色背景铺到 Stack 自身，配合 expandSafeArea 延伸到底部「小白条」之下，避免出现白色空白
+      // 背景与 expandSafeArea 放在同一元素：灰底随 Stack 一起延伸到底部「小白条」之下，
+      // 避免内层 Column(height 100% 仅占安全区) 留下未铺满的空白条。
       .backgroundColor('#F2F3F7')
-      .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+      // .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
     }
     .title('🎵 音乐标签编辑器')
     .titleMode(NavigationTitleMode.Mini)
     .mode(NavigationMode.Stack)
     .navDestination(this.EditorDestination)
     .hideBackButton(true)
+    .padding({
+      top: this.getUIContext().px2vp(this.topRectHeight),
+    })
   }
 
   // ===================== 编辑页（NavDestination） =====================
@@ -139,20 +144,25 @@ struct Index {
       }
       .width('100%')
       .padding({ left: 16, right: 16, top: 12, bottom: 8 })
-
-      List({ space: 8 }) {
-        ForEach(this.fileList, (item: AudioFileEntry) => {
-          ListItem() {
-            this.FileItem(item)
-          }
-          .swipeAction({ end: this.DeleteButton(item) })
-        }, (item: AudioFileEntry) => item.uri)
+      Scroll() {
+        List({ space: 8 }) {
+          ForEach(this.fileList, (item: AudioFileEntry) => {
+            ListItem() {
+              this.FileItem(item)
+            }
+            .swipeAction({ end: this.DeleteButton(item) })
+          }, (item: AudioFileEntry) => item.uri)
+        }
+        .width('100%')
+        .height(LayoutPolicy.wrapContent)
+        .padding({ left: 12, right: 12, bottom: 20 })
       }
       .width('100%')
       .layoutWeight(1)
-      .padding({ left: 12, right: 12, bottom: 88 })
       .scrollBar(BarState.Auto)
-      .edgeEffect(EdgeEffect.Spring)
+      .edgeEffect(EdgeEffect.Fade)
+      // 列表滚动区延伸到底部安全区，内容靠 bottom padding 让出「小白条」与 FAB
+      .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
     }
     .width('100%')
     .height('100%')
@@ -271,7 +281,7 @@ struct Index {
     }
     try {
       this.isImporting = true;
-      const selected = await this.filePickerService.selectMultipleAudioFilesByDocumentPicker();
+      const selected = await this.filePickerService.selectMultipleAudioFilesByDocumentPicker(500);
       if (selected.length === 0) {
         return;
       }
