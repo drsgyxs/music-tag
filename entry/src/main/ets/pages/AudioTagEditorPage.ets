@@ -7,8 +7,19 @@ import { AudioFileEntry } from '../model/AudioFileEntry';
 import { AudioMetadataService } from '../service/AudioMetadataService';
 import { FilePickerService } from '../service/FilePickerService';
 import { AudioMetadataWriteService } from '../service/AudioMetadataWriteService';
+import { GripPostureService } from '../service/GripPostureService';
+import { LUMINANCE_SUPPORTED } from '../common/Luminance';
 import { Id3TagInput } from '../service/Id3v2Writer';
 import { image } from '@kit.ImageKit';
+import { motion } from '@kit.MultimodalAwarenessKit';
+import { HdsNavDestination, HdsNavigationTitleMode, HdsTabs, HdsTabsController, HdsNavigationMenuContentOptions, ScrollEffectType, hdsMaterial } from '@kit.UIDesignKit';
+import { LengthMetrics } from '@kit.ArkUI';
+
+@Builder
+export function AudioTagEditorPageBuilder(name: string, param: object) {
+  AudioTagEditorPage({ fileEntry: param as AudioFileEntry });
+}
+
 
 @Component
 export struct AudioTagEditorPage {
@@ -48,17 +59,38 @@ export struct AudioTagEditorPage {
   // 歌词展开/折叠
   @State lyricsExpanded: boolean = false;
 
+  // 智感握姿：驱动写入悬浮按钮左下/右下切换
+  @State holdingHand: motion.HoldingHandStatus = motion.HoldingHandStatus.RIGHT_HAND_HELD;
+
   // 服务实例
   private metadataService: AudioMetadataService = AudioMetadataService.getInstance();
   private filePickerService: FilePickerService = FilePickerService.getInstance();
   private metadataWriteService: AudioMetadataWriteService = AudioMetadataWriteService.getInstance();
+  private gripService: GripPostureService = GripPostureService.getInstance();
 
   // 消息自动隐藏计时器
   private successTimer: number = -1;
   private errorTimer: number = -1;
+  private gripListener: (status: motion.HoldingHandStatus) => void = (status) => {
+    this.getUIContext().animateTo({ duration: 160, curve: Curve.FastOutSlowIn }, () => {
+      this.holdingHand = status;
+    });
+  };
 
   aboutToAppear(): void {
     this.loadMetadataFromEntry();
+    this.holdingHand = this.gripService.addListener(this.gripListener);
+  }
+
+  aboutToDisappear(): void {
+    this.gripService.removeListener(this.gripListener);
+  }
+
+  /** 写入悬浮按钮外边距：随握姿贴左或贴右 */
+  private fabMargin(): Margin {
+    return this.holdingHand === motion.HoldingHandStatus.LEFT_HAND_HELD
+      ? { left: 20, bottom: 40 }
+      : { right: 20, bottom: 40 };
   }
 
   // ===================== 消息工具 =====================
@@ -82,9 +114,16 @@ export struct AudioTagEditorPage {
     }, 3500);
   }
 
+  /** 智感握姿：左手→左下，右手/双手/未识别→右下 */
+  private fabAlignment(): Alignment {
+    return this.holdingHand === motion.HoldingHandStatus.LEFT_HAND_HELD
+      ? Alignment.BottomStart
+      : Alignment.BottomEnd;
+  }
+
   // ===================== 构建入口 =====================
   build() {
-    Stack({ alignContent: Alignment.BottomEnd }) {
+    HdsNavDestination() {
       Column() {
         if (this.isLoading) {
           this.LoadingView()
@@ -96,45 +135,101 @@ export struct AudioTagEditorPage {
       }
       .width('100%')
       .height('100%')
-      .backgroundColor('#F2F3F7')
-
-      // 写入文件悬浮按钮
-      if (this.hasSelectedFile && !this.isLoading) {
-        this.WriteFab()
-      }
-
-      // 消息提示浮层
-      if (this.errorMessage || this.successMessage) {
-        this.MessageToast()
-      }
     }
-    .width('100%')
-    .height('100%')
-    // 灰色背景铺到 Stack 自身，配合 expandSafeArea 延伸到底部「小白条」之下，避免出现白色空白
-    .backgroundColor('#F2F3F7')
-    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+    .backgroundColor($r('sys.color.background_secondary'))
+    .titleBar({
+      content: {
+        title: {
+          mainTitle: this.fileEntry.fileName,
+        },
+        menu: {
+          value: [{
+            content: {
+              label: '保存',
+              icon: $r('sys.symbol.checkmark'),
+              action: () => {
+                this.writeTagsToFile();
+              }
+            },
+          }]
+        }
+      },
+      enableComponentSafeArea: true, // 将标题栏设置为组件级安全区，内容区可避让标题栏
+      style: {
+        scrollEffectOpts: {
+          // 设置导航组件标题栏样式，推荐使用默认样式
+          // 标题栏动态模糊样式，包括是否使能滚动动态模糊，动态模糊类型，动态模糊生效的滚动距离等
+          enableScrollEffect: true,
+          scrollEffectType: ScrollEffectType.COMMON_BLUR,
+          blurEffectiveStartOffset: LengthMetrics.vp(0),
+          blurEffectiveEndOffset: LengthMetrics.vp(20)
+        },
+        originalStyle: {
+          // 内容区滚动前初始样式设置
+          backgroundStyle: {
+            // 标题栏背板样式设置
+            backgroundColor: $r('sys.color.ohos_id_color_background'),
+          },
+          contentStyle: {
+            // 标题栏内容区样式设置，包括标题区域，菜单区域，返回按钮区域
+            titleStyle: {
+              mainTitleColor: $r('sys.color.font_primary'),
+              subTitleColor: $r('sys.color.font_secondary')
+            },
+            menuStyle: {
+              backgroundColor: $r('sys.color.comp_background_tertiary'),
+              iconColor: $r('sys.color.icon_primary')
+            },
+            backIconStyle: {
+              backgroundColor: $r('sys.color.comp_background_tertiary'),
+              iconColor: $r('sys.color.icon_primary')
+            }
+          }
+        },
+        scrollEffectStyle: {
+          // 内容区滚动超过blurEffectiveEndOffset后样式设置
+          backgroundStyle: {
+            backgroundColor: $r('sys.color.ohos_id_color_background_transparent')
+          },
+          contentStyle: {
+            titleStyle: {
+              mainTitleColor: $r('sys.color.font_primary'),
+              subTitleColor: $r('sys.color.font_secondary')
+            },
+            menuStyle: {
+              backgroundColor: $r('sys.color.comp_background_tertiary'),
+              iconColor: $r('sys.color.icon_primary')
+            },
+            backIconStyle: {
+              backgroundColor: $r('sys.color.comp_background_tertiary'),
+              iconColor: $r('sys.color.icon_primary')
+            }
+          }
+        },
+      },
+    })
   }
 
   // ===================== 写入文件悬浮按钮 =====================
   @Builder
   WriteFab() {
+    // 智感握姿：左手握持贴左、否则贴右；沉浸光感：透明底 + 材质，降级回退纯色
     Button({ type: ButtonType.Circle }) {
       if (this.isWriting) {
         LoadingProgress()
           .width(28)
           .height(28)
-          .color('#FFFFFF')
+          .color(LUMINANCE_SUPPORTED ? '#009688' : '#FFFFFF')
       } else {
         Text('💾')
           .fontSize(24)
-          .fontColor('#FFFFFF')
       }
     }
     .width(56)
     .height(56)
-    .backgroundColor('#009688')
+    .backgroundColor(LUMINANCE_SUPPORTED ? Color.Transparent : '#009688')
     .shadow({ radius: 12, color: '#40000000', offsetX: 0, offsetY: 4 })
-    .margin({ right: 20, bottom: 40 })
+    .margin(this.fabMargin())
     .enabled(!this.isWriting)
     .onClick(() => {
       this.writeTagsToFile();
@@ -213,60 +308,19 @@ export struct AudioTagEditorPage {
   EditorView() {
     Scroll() {
       Column() {
-        this.FileInfoCard()
         this.CoverSection()
         this.BasicInfoSection()
         this.DetailInfoSection()
         this.LyricsSection()
-        this.NoticeSection()
       }
       .width('100%')
-      .padding({ left: 12, right: 12, top: 8, bottom: 20 })
+      .padding({ left: 12, right: 12, top: 12, bottom: 16 })
     }
+    .clipContent(ContentClipMode.SAFE_AREA)
     .width('100%')
     .layoutWeight(1)
     .scrollBar(BarState.Auto)
-    .edgeEffect(EdgeEffect.Fade)
-  }
-
-  // ===================== 文件信息卡片 =====================
-  @Builder
-  FileInfoCard() {
-    Column() {
-      this.CardHeader('📁 文件信息')
-
-      this.InfoRow2('文件名', this.currentMetadata.fileName)
-      this.InfoRow2('格式', this.currentMetadata.fileFormat.toUpperCase() || '未知')
-      Row() {
-        Column() {
-          Text('文件大小')
-            .fontSize(12)
-            .fontColor('#95A5A6')
-          Text(this.metadataService.formatFileSize(this.currentMetadata.fileSize))
-            .fontSize(14)
-            .fontColor('#2C3E50')
-            .margin({ top: 2 })
-        }
-        .alignItems(HorizontalAlign.Start)
-        .layoutWeight(1)
-
-        Column() {
-          Text('时长')
-            .fontSize(12)
-            .fontColor('#95A5A6')
-          Text(this.metadataService.formatDuration(this.currentMetadata.duration))
-            .fontSize(14)
-            .fontColor('#2C3E50')
-            .margin({ top: 2 })
-        }
-        .alignItems(HorizontalAlign.Start)
-        .layoutWeight(1)
-      }
-      .width('100%')
-      .margin({ top: 4 })
-    }
-    .cardStyle()
-    .margin({ bottom: 10 })
+    .edgeEffect(EdgeEffect.Spring)
   }
 
   // ===================== 封面区域 =====================
@@ -279,9 +333,9 @@ export struct AudioTagEditorPage {
         Button({ type: ButtonType.Normal }) {
           Text(this.currentMetadata.hasCover ? '更换封面' : '添加封面')
             .fontSize(12)
-            .fontColor('#3F51B5')
+            .fontColor($r('sys.color.brand'))
         }
-        .backgroundColor('#E8EAF6')
+        .backgroundColor($r('sys.color.comp_background_secondary'))
         .borderRadius(14)
         .height(28)
         .padding({ left: 10, right: 10 })
@@ -368,17 +422,17 @@ export struct AudioTagEditorPage {
     Column() {
       Text(label)
         .fontSize(12)
-        .fontColor('#7F8C8D')
+        .fontColor($r('sys.color.font_secondary'))
         .width('100%')
         .margin({ bottom: 4 })
       TextInput({ text: value, placeholder: placeholder })
         .width('100%')
         .height(40)
-        .backgroundColor('#F4F6F8')
+        .backgroundColor($r('sys.color.comp_background_gray'))
         .borderRadius(8)
         .fontSize(14)
-        .fontColor('#2C3E50')
-        .placeholderColor('#BDC3C7')
+        .fontColor($r('sys.color.font_primary'))
+        .placeholderColor($r('sys.color.font_tertiary'))
         .onChange((v: string) => onChange(v))
     }
     .width('100%')
@@ -392,7 +446,7 @@ export struct AudioTagEditorPage {
       Row() {
         Text(label)
           .fontSize(12)
-          .fontColor('#7F8C8D')
+          .fontColor($r('sys.color.font_secondary'))
         Text('不支持')
           .fontSize(10)
           .fontColor('#E67E22')
@@ -407,14 +461,14 @@ export struct AudioTagEditorPage {
       TextInput({ text: value })
         .width('100%')
         .height(40)
-        .backgroundColor('#ECEFF1')
+        .backgroundColor($r('sys.color.background_primary'))
         .borderRadius(8)
         .fontSize(14)
-        .fontColor('#BDC3C7')
+        .fontColor($r('sys.color.font_secondary'))
         .enabled(false)
       Text(reason)
         .fontSize(11)
-        .fontColor('#95A5A6')
+        .fontColor($r('sys.color.font_secondary'))
         .width('100%')
         .margin({ top: 4 })
     }
@@ -444,17 +498,17 @@ export struct AudioTagEditorPage {
       Column() {
         Text('注释')
           .fontSize(12)
-          .fontColor('#7F8C8D')
+          .fontColor($r('sys.color.font_secondary'))
           .width('100%')
           .margin({ bottom: 4 })
         TextArea({ text: this.editComment, placeholder: '添加注释...' })
           .width('100%')
           .height(80)
-          .backgroundColor('#F4F6F8')
+          .backgroundColor($r('sys.color.comp_background_gray'))
           .borderRadius(8)
           .fontSize(14)
-          .fontColor('#2C3E50')
-          .placeholderColor('#BDC3C7')
+          .fontColor($r('sys.color.font_primary'))
+          .placeholderColor($r('sys.color.font_tertiary'))
           .onChange((v: string) => { this.editComment = v; })
       }
       .width('100%')
@@ -520,11 +574,11 @@ export struct AudioTagEditorPage {
       TextArea({ text: this.editLyrics, placeholder: '在此输入或编辑歌词...\n支持 LRC 格式，如：[00:10.00] 第一行歌词' })
         .width('100%')
         .height(this.lyricsExpanded ? 400 : 160)
-        .backgroundColor('#F4F6F8')
+        .backgroundColor($r('sys.color.comp_background_gray'))
         .borderRadius(8)
         .fontSize(13)
-        .fontColor('#2C3E50')
-        .placeholderColor('#BDC3C7')
+        .fontColor($r('sys.color.font_primary'))
+        .placeholderColor($r('sys.color.font_tertiary'))
         .onChange((v: string) => {
           this.editLyrics = v;
         })
@@ -542,41 +596,6 @@ export struct AudioTagEditorPage {
     .margin({ bottom: 10 })
   }
 
-  // ===================== 注意事项 =====================
-  @Builder
-  NoticeSection() {
-    Column() {
-      Row() {
-        Text('⚠️')
-          .fontSize(16)
-          .margin({ right: 6 })
-        Text('说明')
-          .fontSize(15)
-          .fontWeight(FontWeight.Medium)
-          .fontColor('#E67E22')
-      }
-      .width('100%')
-      .margin({ bottom: 10 })
-
-      Text('1. 点击「写入文件」会将标签直接写回原文件：MP3 采用 ID3v2.3，FLAC 采用 Vorbis Comment（均支持中文、封面、歌词）')
-        .noticeTextStyle()
-      Text('2. 写入为原地覆盖，建议先备份重要文件；若提示无写权限，请改用文档选择器选取本地存储中的文件')
-        .noticeTextStyle()
-      Text('3. 点击「保存」会将编辑内容存入应用本地存储（不修改原文件）')
-        .noticeTextStyle()
-      Text('4. 点击「导出」可将标签信息导出为 JSON / TXT / CSV 文件')
-        .noticeTextStyle()
-      Text('5. 目前标签读取与写入支持 MP3、FLAC、M4A，其他格式陆续支持中......')
-        .noticeTextStyle()
-      Text('6. 作曲家、词作者、专辑艺术家、音轨号、光盘号、版权均可编辑；其中「词作者」在 M4A 格式下无标准标签，故不支持写入')
-        .noticeTextStyle()
-    }
-    .width('100%')
-    .padding(16)
-    .backgroundColor('#FEF9E7')
-    .borderRadius(12)
-    .margin({ bottom: 10 })
-  }
 
   // ===================== 消息浮层 =====================
   @Builder
@@ -631,7 +650,7 @@ export struct AudioTagEditorPage {
     Text(title)
       .fontSize(15)
       .fontWeight(FontWeight.Medium)
-      .fontColor('#2C3E50')
+      .fontColor($r('sys.color.font_primary'))
       .width('100%')
       .margin({ bottom: 14 })
   }
@@ -641,7 +660,7 @@ export struct AudioTagEditorPage {
     Text(title)
       .fontSize(15)
       .fontWeight(FontWeight.Medium)
-      .fontColor('#2C3E50')
+      .fontColor($r('sys.color.font_primary'))
   }
 
   @Builder
@@ -731,6 +750,7 @@ export struct AudioTagEditorPage {
    * 更换封面图片
    */
   async selectCoverImage(): Promise<void> {
+    const promptAction = this.getUIContext().getPromptAction();
     try {
       const imageUri = await this.filePickerService.selectImageFile();
       if (imageUri) {
@@ -738,12 +758,16 @@ export struct AudioTagEditorPage {
         if (pixelMap) {
           this.coverPixelMap = pixelMap;
           this.currentMetadata.hasCover = true;
-          this.showSuccess('封面已更新');
+          promptAction.showToast({
+            message: '封面已更新'
+          })
         }
       }
     } catch (error) {
       console.error('选择封面失败:', error);
-      this.showError(`选择封面失败: ${error}`);
+      promptAction.showToast({
+        message: `选择封面失败${error}`
+      })
     }
   }
 
@@ -757,12 +781,15 @@ export struct AudioTagEditorPage {
 
     const fmt = this.currentMetadata.fileFormat.toLowerCase();
     const isM4a: boolean = fmt === 'm4a' || fmt === 'mp4' || fmt === 'aac';
-    if (fmt !== 'mp3' && fmt !== 'flac' && !isM4a) {
-      this.showError('当前仅支持写入 MP3、FLAC、M4A 文件');
-      return;
-    }
+    const promptAction = this.getUIContext().getPromptAction();
 
     try {
+      if (fmt !== 'mp3' && fmt !== 'flac' && !isM4a) {
+        promptAction.showToast({
+          message: '当前仅支持写入 MP3、FLAC、M4A 文件'
+        });
+        return;
+      }
       this.isWriting = true;
 
       // 同步编辑字段到 currentMetadata
@@ -813,10 +840,14 @@ export struct AudioTagEditorPage {
 
       await this.metadataWriteService.writeTags(this.currentMetadata.filePath, fmt, input);
 
-      this.showSuccess('标签已成功写入音频文件');
+      promptAction.showToast({
+        message: '保存成功'
+      });
     } catch (error) {
       console.error('写入文件失败:', error);
-      this.showError(`写入失败: ${error}`);
+      promptAction.showToast({
+        message: '保存失败'
+      });
     } finally {
       this.isWriting = false;
     }
@@ -829,15 +860,6 @@ export struct AudioTagEditorPage {
 function cardStyle() {
   .width('100%')
   .padding(16)
-  .backgroundColor('#FFFFFF')
+  .backgroundColor($r('sys.color.comp_background_primary'))
   .borderRadius(14)
-}
-
-@Extend(Text)
-function noticeTextStyle() {
-  .fontSize(13)
-  .fontColor('#7F8C8D')
-  .width('100%')
-  .margin({ bottom: 6 })
-  .lineHeight(20)
 }

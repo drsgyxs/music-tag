@@ -23,6 +23,10 @@
     {
       "name": "persist_permission_reason",
       "value": "Need persistent access to imported audio files so they remain editable across app restarts"
+    },
+    {
+      "name": "grip_permission_reason",
+      "value": "Detect holding hand to move the floating button within thumb reach for one-handed use"
     }
   ]
 }

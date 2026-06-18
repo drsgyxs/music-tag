@@ -31,40 +31,40 @@ export default class EntryAbility extends UIAbility {
       }
       // 沉浸式布局：让内容延伸到状态栏与底部「小白条」之下，
       // 并将系统状态栏 / 导航条背景设为透明，避免底部出现白色矩形。
-      try {
-        const windowClass = windowStage.getMainWindowSync();
-        windowClass.setWindowLayoutFullScreen(true)
-          .catch((err: BusinessError) => {
-            hilog.error(DOMAIN, 'testTag', 'Failed to set the window layout. Cause: %{public}s', JSON.stringify(err));
-          });
-        windowClass.setWindowSystemBarProperties({
-          statusBarColor: '#00000000',
-          statusBarContentColor: '#000000',
-          navigationBarColor: '#00000000',
-          navigationBarContentColor: '#000000'
-        }).catch((err: BusinessError) => {
-          hilog.error(DOMAIN, 'testTag', 'Failed to set the window system bar properties. Cause: %{public}s',
-            JSON.stringify(err));
-        });
-        let type = window.AvoidAreaType.TYPE_SYSTEM; // 以状态栏避让为例
-        let avoidArea = windowClass.getWindowAvoidArea(type);
-        let topRectHeight = avoidArea.topRect.height; // 获取状态栏区域高度
-        AppStorage.setOrCreate('topRectHeight', topRectHeight);
-
-        windowClass.on('avoidAreaChange', (data) => {
-          if (data.type === window.AvoidAreaType.TYPE_SYSTEM) {
-            let topRectHeight = data.area.topRect.height;
-            AppStorage.setOrCreate('topRectHeight', topRectHeight);
-          }
-          // else if (data.type == window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR) {
-          //   let bottomRectHeight = data.area.bottomRect.height;
-          //   AppStorage.setOrCreate('bottomRectHeight', bottomRectHeight);
-          // }
-        });
-
-      } catch (err) {
-        hilog.error(DOMAIN, 'testTag', 'Failed to set immersive window. Cause: %{public}s', JSON.stringify(err));
-      }
+      // try {
+      //   const windowClass = windowStage.getMainWindowSync();
+      //   windowClass.setWindowLayoutFullScreen(true)
+      //     .catch((err: BusinessError) => {
+      //       hilog.error(DOMAIN, 'testTag', 'Failed to set the window layout. Cause: %{public}s', JSON.stringify(err));
+      //     });
+      //   windowClass.setWindowSystemBarProperties({
+      //     statusBarColor: '#00000000',
+      //     statusBarContentColor: '#000000',
+      //     navigationBarColor: '#00000000',
+      //     navigationBarContentColor: '#000000'
+      //   }).catch((err: BusinessError) => {
+      //     hilog.error(DOMAIN, 'testTag', 'Failed to set the window system bar properties. Cause: %{public}s',
+      //       JSON.stringify(err));
+      //   });
+      //   let type = window.AvoidAreaType.TYPE_SYSTEM; // 以状态栏避让为例
+      //   let avoidArea = windowClass.getWindowAvoidArea(type);
+      //   let topRectHeight = avoidArea.topRect.height; // 获取状态栏区域高度
+      //   AppStorage.setOrCreate('topRectHeight', topRectHeight);
+      //
+      //   windowClass.on('avoidAreaChange', (data) => {
+      //     if (data.type === window.AvoidAreaType.TYPE_SYSTEM) {
+      //       let topRectHeight = data.area.topRect.height;
+      //       AppStorage.setOrCreate('topRectHeight', topRectHeight);
+      //     }
+      //     // else if (data.type == window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR) {
+      //     //   let bottomRectHeight = data.area.bottomRect.height;
+      //     //   AppStorage.setOrCreate('bottomRectHeight', bottomRectHeight);
+      //     // }
+      //   });
+      //
+      // } catch (err) {
+      //   hilog.error(DOMAIN, 'testTag', 'Failed to set immersive window. Cause: %{public}s', JSON.stringify(err));
+      // }
       hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the home page.');
     });
   }

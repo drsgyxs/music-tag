@@ -11,7 +11,14 @@ import { FileListStorageService } from '../service/FileListStorageService';
 import { FilePermissionService } from '../service/FilePermissionService';
 import { FilePickerService } from '../service/FilePickerService';
 import { AudioMetadataService } from '../service/AudioMetadataService';
+import { GripPostureService } from '../service/GripPostureService';
+import { LUMINANCE_SUPPORTED } from '../common/Luminance';
 import { AudioTagEditorPage } from './AudioTagEditorPage';
+import { motion } from '@kit.MultimodalAwarenessKit';
+
+import { HdsNavigation, HdsNavigationTitleMode, HdsTabs, HdsTabsController, HdsNavigationMenuContentOptions, ScrollEffectType, hdsMaterial,
+  HideMode } from '@kit.UIDesignKit';
+import { LengthMetrics } from '@kit.ArkUI';
 
 @Entry
 @Component
@@ -19,6 +26,8 @@ struct Index {
   @State fileList: AudioFileEntry[] = [];
   @State isImporting: boolean = false;
   @State toastMessage: string = '';
+  // 智感握姿：驱动悬浮按钮左下/右下切换
+  @State holdingHand: motion.HoldingHandStatus = motion.HoldingHandStatus.RIGHT_HAND_HELD;
   @Provide('pageStack') pageStack: NavPathStack = new NavPathStack();
   @StorageProp('topRectHeight')
   topRectHeight: number = 0;
@@ -27,10 +36,23 @@ struct Index {
   private permissionService: FilePermissionService = FilePermissionService.getInstance();
   private filePickerService: FilePickerService = FilePickerService.getInstance();
   private metadataService: AudioMetadataService = AudioMetadataService.getInstance();
+  private gripService: GripPostureService = GripPostureService.getInstance();
   private toastTimer: number = -1;
+  private gripListener: (status: motion.HoldingHandStatus) => void = (status) => {
+    this.getUIContext().animateTo({ duration: 160, curve: Curve.FastOutSlowIn }, () => {
+      this.holdingHand = status;
+    });
+  };
+
+  private scroller: Scroller = new Scroller();
 
   aboutToAppear(): void {
     this.refreshList();
+    this.holdingHand = this.gripService.addListener(this.gripListener);
+  }
+
+  aboutToDisappear(): void {
+    this.gripService.removeListener(this.gripListener);
   }
 
   /** 加载列表并激活已持久化的文件权限 */
@@ -53,43 +75,111 @@ struct Index {
     }, 2500);
   }
 
+  /** 智感握姿：左手→左下，右手/双手/未识别→右下 */
+  private fabAlignment(): Alignment {
+    return this.holdingHand === motion.HoldingHandStatus.LEFT_HAND_HELD
+      ? Alignment.BottomStart
+      : Alignment.BottomEnd;
+  }
+
+  /** 悬浮按钮外边距：随握姿贴左或贴右 */
+  private fabMargin(): Margin {
+    return this.holdingHand === motion.HoldingHandStatus.LEFT_HAND_HELD
+      ? { left: 20, bottom: 40 }
+      : { right: 20, bottom: 40 };
+  }
+
   // ===================== 构建入口 =====================
   build() {
-    Navigation(this.pageStack) {
-      Stack({ alignContent: Alignment.BottomEnd }) {
-        Column() {
-          if (this.fileList.length === 0) {
-            this.EmptyView()
-          } else {
-            this.FileListView()
-          }
-        }
-        .width('100%')
-        .height('100%')
-
-        // 悬浮导入按钮
-        this.ImportFab()
-
-        // 轻提示
-        if (this.toastMessage) {
-          this.Toast()
-        }
+    HdsNavigation(this.pageStack) {
+      if (this.fileList.length === 0) {
+        this.EmptyView()
+      } else {
+        this.FileListView()
       }
-      .width('100%')
-      .height('100%')
-      // 背景与 expandSafeArea 放在同一元素：灰底随 Stack 一起延伸到底部「小白条」之下，
-      // 避免内层 Column(height 100% 仅占安全区) 留下未铺满的空白条。
-      .backgroundColor('#F2F3F7')
-      // .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
     }
-    .title('🎵 音乐标签编辑器')
-    .titleMode(NavigationTitleMode.Mini)
-    .mode(NavigationMode.Stack)
-    .navDestination(this.EditorDestination)
-    .hideBackButton(true)
-    .padding({
-      top: this.getUIContext().px2vp(this.topRectHeight),
+    .backgroundColor($r('sys.color.background_secondary'))
+    .titleBar({
+      content: {
+        title: {
+          mainTitle: '音乐标签',
+        },
+        menu: {
+          value: [{
+            content: {
+              label: '导入',
+              icon: $r('sys.symbol.plus'),
+              action: () => {
+                this.importFiles();
+              }
+            },
+          }]
+        }
+      },
+      enableComponentSafeArea: true, // 将标题栏设置为组件级安全区，内容区可避让标题栏
+      style: {
+        scrollEffectOpts: {
+          // 设置导航组件标题栏样式，推荐使用默认样式
+          // 标题栏动态模糊样式，包括是否使能滚动动态模糊，动态模糊类型，动态模糊生效的滚动距离等
+          enableScrollEffect: true,
+          scrollEffectType: ScrollEffectType.COMMON_BLUR,
+          blurEffectiveStartOffset: LengthMetrics.vp(0),
+          blurEffectiveEndOffset: LengthMetrics.vp(20)
+        },
+        originalStyle: {
+          // 内容区滚动前初始样式设置
+          backgroundStyle: {
+            // 标题栏背板样式设置
+            backgroundColor: $r('sys.color.ohos_id_color_background'),
+          },
+          contentStyle: {
+            // 标题栏内容区样式设置，包括标题区域，菜单区域，返回按钮区域
+            titleStyle: {
+              mainTitleColor: $r('sys.color.font_primary'),
+              subTitleColor: $r('sys.color.font_secondary')
+            },
+            menuStyle: {
+              backgroundColor: $r('sys.color.comp_background_tertiary'),
+              iconColor: $r('sys.color.icon_primary')
+            },
+            backIconStyle: {
+              backgroundColor: $r('sys.color.comp_background_tertiary'),
+              iconColor: $r('sys.color.icon_primary')
+            }
+          }
+        },
+        scrollEffectStyle: {
+          // 内容区滚动超过blurEffectiveEndOffset后样式设置
+          backgroundStyle: {
+            backgroundColor: $r('sys.color.ohos_id_color_background_transparent')
+          },
+          contentStyle: {
+            titleStyle: {
+              mainTitleColor: $r('sys.color.font_primary'),
+              subTitleColor: $r('sys.color.font_secondary')
+            },
+            menuStyle: {
+              backgroundColor: $r('sys.color.comp_background_tertiary'),
+              iconColor: $r('sys.color.icon_primary')
+            },
+            backIconStyle: {
+              backgroundColor: $r('sys.color.comp_background_tertiary'),
+              iconColor: $r('sys.color.icon_primary')
+            }
+          }
+        },
+      },
     })
+    .dynamicHideTitleBar({
+      hideTitleArea: true,
+      hideBottomBuilder: true,
+      hideStatusBar: false,
+      mode: HideMode.SCROLL_UP
+    })
+    .hideBackButton(true)
+    .bindToScrollable([this.scroller]) // 绑定导航组件和可滚动容器组件
+    // .navDestination(this.EditorDestination)
+    .titleMode(HdsNavigationTitleMode.MINI)
   }
 
   // ===================== 编辑页（NavDestination） =====================
@@ -135,37 +225,21 @@ struct Index {
   // ===================== 文件列表 =====================
   @Builder
   FileListView() {
-    Column() {
-      Row() {
-        Text(`已导入 ${this.fileList.length} 个文件`)
-          .fontSize(13)
-          .fontColor('#7F8C8D')
-          .layoutWeight(1)
-      }
-      .width('100%')
-      .padding({ left: 16, right: 16, top: 12, bottom: 8 })
-      Scroll() {
-        List({ space: 8 }) {
-          ForEach(this.fileList, (item: AudioFileEntry) => {
-            ListItem() {
-              this.FileItem(item)
-            }
-            .swipeAction({ end: this.DeleteButton(item) })
-          }, (item: AudioFileEntry) => item.uri)
+    List({ space: 12, initialIndex: 0, scroller: this.scroller }) {
+      ForEach(this.fileList, (item: AudioFileEntry) => {
+        ListItem() {
+          this.FileItem(item)
         }
-        .width('100%')
-        .height(LayoutPolicy.wrapContent)
-        .padding({ left: 12, right: 12, bottom: 20 })
-      }
-      .width('100%')
-      .layoutWeight(1)
-      .scrollBar(BarState.Auto)
-      .edgeEffect(EdgeEffect.Fade)
-      // 列表滚动区延伸到底部安全区，内容靠 bottom padding 让出「小白条」与 FAB
-      .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+        .swipeAction({ end: this.DeleteButton(item) })
+      }, (item: AudioFileEntry) => item.uri)
     }
     .width('100%')
-    .height('100%')
+    .padding({ top: 12, left: 12, right: 12, bottom: 16 })
+    .clip(false) // 设置不对子组件超出当前组件范围外的区域进行裁剪，使内容区可以穿透到标题栏下方
+    .cachedCount(3, true) // 设置列表中ListItem/ListItemGroup的预加载数量，列表穿透到标题栏下方不会消失
+    .scrollBar(BarState.Off)
+    .edgeEffect(EdgeEffect.Spring, { alwaysEnabled: true })
+    .height('auto')
   }
 
   @Builder
@@ -176,38 +250,38 @@ struct Index {
         Text(item.fileFormat.toUpperCase())
           .fontSize(11)
           .fontWeight(FontWeight.Bold)
-          .fontColor('#FFFFFF')
+          .fontColor($r('sys.color.font_on_primary'))
       }
       .width(44)
       .height(44)
       .borderRadius(10)
-      .backgroundColor('#3F51B5')
+      .backgroundColor($r('sys.color.brand'))
       .justifyContent(FlexAlign.Center)
       .margin({ right: 12 })
 
       Column() {
         Text(item.fileName)
           .fontSize(15)
-          .fontColor('#2C3E50')
+          .fontColor($r('sys.color.font_primary'))
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .width('100%')
         Text(this.metadataService.formatFileSize(item.fileSize))
           .fontSize(12)
-          .fontColor('#95A5A6')
+          .fontColor($r('sys.color.font_secondary'))
           .margin({ top: 4 })
       }
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
 
-      Text('›')
+      SymbolGlyph($r('sys.symbol.chevron_right'))
         .fontSize(22)
-        .fontColor('#BDC3C7')
+        .fontColor([$r('sys.color.font_secondary')])
         .margin({ left: 8 })
     }
     .width('100%')
     .padding(12)
-    .backgroundColor('#FFFFFF')
+    .backgroundColor($r('sys.color.comp_background_primary'))
     .borderRadius(12)
     .onClick(() => {
       this.openEditor(item);
@@ -234,23 +308,27 @@ struct Index {
   // ===================== 悬浮导入按钮 =====================
   @Builder
   ImportFab() {
+    // 智感握姿：左手握持贴左、否则贴右，避让到拇指可达侧
     Button({ type: ButtonType.Circle }) {
       if (this.isImporting) {
         LoadingProgress()
           .width(28)
           .height(28)
-          .color('#FFFFFF')
+          .color(LUMINANCE_SUPPORTED ? '#3F51B5' : '#FFFFFF')
       } else {
         Text('+')
           .fontSize(32)
-          .fontColor('#FFFFFF')
+          .fontColor(LUMINANCE_SUPPORTED ? '#3F51B5' : '#FFFFFF')
       }
     }
     .width(56)
     .height(56)
-    .backgroundColor('#3F51B5')
-    .shadow({ radius: 12, color: '#40000000', offsetX: 0, offsetY: 4 })
-    .margin({ right: 20, bottom: 40 })
+    // 沉浸光感：透明底 + 材质；不支持时回退品牌纯色
+    .backgroundColor(LUMINANCE_SUPPORTED ? Color.Transparent : '#3F51B5')
+    .backdropBlur(12)
+    .borderWidth(1)
+    .borderColor('#FFFFFF')
+    .margin(this.fabMargin())
     .enabled(!this.isImporting)
     .onClick(() => {
       this.importFiles();

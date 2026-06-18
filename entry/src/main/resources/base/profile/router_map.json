@@ -1,0 +1,9 @@
+{
+  "routerMap": [
+    {
+      "name": "editor",
+      "pageSourceFile": "src/main/ets/pages/AudioTagEditorPage.ets",
+      "buildFunction": "AudioTagEditorPageBuilder"
+    }
+  ]
+}
